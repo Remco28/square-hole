@@ -15,12 +15,13 @@ body {
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  overflow: hidden;
+  overflow-x: hidden;
   overscroll-behavior: none;
 }
 
 #app {
   display: flex;
+  flex-direction: column;
   gap: 10px;
   padding: 10px;
   align-items: center;
@@ -29,11 +30,11 @@ body {
 
 /* Both sides are square: the panel shape is the content, not the viewport. */
 .panel {
-  --side: min(58dvh, 96vw);
+  --side: min(58dvh, 100vw - 24px);
   position: relative;
   width: var(--side);
   aspect-ratio: 1;
-  border-radius: 16px;
+  border-radius: 8px;
   overflow: hidden;
   background: #14171c;
   box-shadow: 0 18px 50px rgb(0 0 0 / 55%);
@@ -112,7 +113,8 @@ body {
 #toolbar button {
   font: inherit;
   font-size: 13px;
-  min-width: 42px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 9px 12px;
   border: 1px solid rgb(255 255 255 / 14%);
   border-radius: 10px;
@@ -159,6 +161,7 @@ body {
 /* Side by side when the viewport can afford two squares, stacked when it can't.
    On a phone the mirror shrinks so the puzzle keeps the thumb zone. */
 @media (min-aspect-ratio: 1/1) and (min-width: 720px) {
+  #app { flex-direction: row; }
   .panel,
   #mirror {
     --side: min(100dvh - 24px, 46vw);

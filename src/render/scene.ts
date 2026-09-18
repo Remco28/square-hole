@@ -12,8 +12,10 @@ import {
   Mesh,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
-  PCFSoftShadowMap,
+  TorusGeometry,
+  PCFShadowMap,
   PerspectiveCamera,
+  PlaneGeometry,
   Plane,
   PMREMGenerator,
   Raycaster,
@@ -28,6 +30,8 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import {
   CARRY_Y,
   LID_TOP_Y,
+  LID_BOTTOM_Y,
+  PIECE_T,
   PAIL_DEPTH,
   PAIL_OUTER_R,
   PAIL_WALL,
@@ -53,6 +57,7 @@ export interface Viewer {
   /** Viewport pixels for a world point, so overlays and tools can find the scene. */
   project(point: { x: number; y: number; z: number }): { x: number; y: number };
   resize(): void;
+  rotateView(steps: number): void;
   /** Escape hatch for live diagnosis from the console (`agent-browser eval`). */
   debug: { scene: Scene; sun: DirectionalLight };
   /** What the pointer ray hits: mesh name, world point, face normal. */
@@ -72,34 +77,33 @@ export interface Viewer {
  * round and every piece stays in arm's reach.
  */
 const CAMERA = {
-  distance: 5.6,
-  elevationDeg: 70,
+  distance: 6.2,
+  elevationDeg: 74,
   azimuthDeg: 22,
   fov: 40,
-  lookAt: new Vector3(0, 0.3, 0),
+  lookAt: new Vector3(0, 0.45, 0),
 };
 
-function granite(): CanvasTexture {
+function plasticGrain(): CanvasTexture {
   const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('no 2d context for the counter');
-  ctx.fillStyle = '#3a3e45';
+  ctx.fillStyle = '#808080';
   ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < 9000; i++) {
-    const shade = Math.round(40 + Math.random() * 100);
-    ctx.fillStyle = `rgba(${shade},${shade},${shade + 8},${(0.2 + Math.random() * 0.5).toFixed(2)})`;
-    ctx.beginPath();
-    ctx.arc(Math.random() * size, Math.random() * size, 1 + Math.random() * 3.4, 0, Math.PI * 2);
-    ctx.fill();
+  let seed = 17;
+  const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  for (let i = 0; i < 45000; i++) {
+    const shade = Math.round(100 + random() * 56);
+    ctx.fillStyle = `rgb(${shade},${shade},${shade})`;
+    ctx.fillRect(random() * size, random() * size, 1, 1);
   }
   const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
   texture.wrapS = RepeatWrapping;
   texture.wrapT = RepeatWrapping;
-  texture.repeat.set(7, 7);
+  texture.repeat.set(3, 3);
   texture.anisotropy = 4;
   return texture;
 }
@@ -108,7 +112,7 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
   const renderer = new WebGLRenderer({ canvas: gl, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = PCFSoftShadowMap;
+  renderer.shadowMap.type = PCFShadowMap;
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
@@ -116,9 +120,9 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
   const scene = new Scene();
   scene.background = new Color(0x14171c);
   scene.environment = new PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.4;
+  scene.environmentIntensity = 0.65;
 
-  const camera = new PerspectiveCamera(CAMERA.fov, 1, 0.05, 80);
+  const camera = new PerspectiveCamera(CAMERA.fov, 1, 0.5, 40);
   const elevation = (CAMERA.elevationDeg * Math.PI) / 180;
   const azimuth = (CAMERA.azimuthDeg * Math.PI) / 180;
   camera.position.set(
@@ -127,33 +131,45 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
     CAMERA.lookAt.z + CAMERA.distance * Math.cos(elevation) * Math.cos(azimuth),
   );
   camera.lookAt(CAMERA.lookAt);
+  let viewAngle = azimuth;
+  const rotateView = (steps: number): void => {
+    viewAngle += steps * Math.PI / 6;
+    camera.position.x = CAMERA.lookAt.x + CAMERA.distance * Math.cos(elevation) * Math.sin(viewAngle);
+    camera.position.z = CAMERA.lookAt.z + CAMERA.distance * Math.cos(elevation) * Math.cos(viewAngle);
+    camera.lookAt(CAMERA.lookAt);
+    camera.updateMatrixWorld();
+  };
 
   // --- light --------------------------------------------------------------------
-  scene.add(new HemisphereLight(0xdce6ff, 0x2a2b33, 0.55));
-  const sun = new DirectionalLight(0xfff2de, 2.5);
-  sun.position.set(2.6, 5.6, 2.2);
+  scene.add(new HemisphereLight(0xeaf0ff, 0x817568, 1.1));
+  const sun = new DirectionalLight(0xfff2de, 1.5);
+  sun.position.set(-1.8, 7, 1.3);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.near = 1;
   sun.shadow.camera.far = 16;
   sun.shadow.camera.left = -3.6;
   sun.shadow.camera.right = 3.6;
   sun.shadow.camera.top = 3.6;
   sun.shadow.camera.bottom = -3.6;
-  sun.shadow.bias = -0.0006;
-  sun.shadow.normalBias = 0.02;
+  sun.shadow.bias = -0.0002;
+  sun.shadow.normalBias = 0.006;
+  // PCFSoft ignores radius; regular PCF gives this light an actual soft edge.
+  sun.shadow.radius = 5;
   scene.add(sun);
 
   // --- the counter, which doubles as the pail's floor ---------------------------
   const counter = new Mesh(
-    new CylinderGeometry(counterSize / 2, counterSize / 2, U(20), 64),
-    new MeshStandardMaterial({ map: granite(), roughness: 0.88, metalness: 0.02 }),
+    new PlaneGeometry(counterSize * 4, counterSize * 4),
+    new MeshStandardMaterial({ color: 0xaaa397, roughness: 0.96, metalness: 0 }),
   );
-  counter.position.y = -U(20) / 2;
+  counter.rotation.x = -Math.PI / 2;
+  counter.position.y = -0.001;
   counter.receiveShadow = true;
   counter.name = 'counter';
   scene.add(counter);
 
+  const grain = plasticGrain();
   const plastic = new MeshPhysicalMaterial({
     color: 0xf5f2e9,
     roughness: 0.38,
@@ -171,6 +187,8 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
       metalness: 0,
       clearcoat: 0.4,
       clearcoatRoughness: 0.6,
+      bumpMap: grain,
+      bumpScale: 0.001,
     }),
   );
   pail.castShadow = true;
@@ -211,11 +229,25 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
   lid.name = 'lid';
   scene.add(lid);
 
+  // Snap-fit seam and foot ring; the rounded lid edge is part of its mesh.
+  for (const [radius, tube, height] of [
+    [PAIL_OUTER_R + 1, 1.2, PAIL_DEPTH - 1],
+    [PAIL_OUTER_R - 0.5, 1.4, 3],
+  ]) {
+    const ring = new Mesh(new TorusGeometry(U(radius), U(tube), 12, 128), plastic);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = U(height);
+    ring.castShadow = true;
+    ring.receiveShadow = true;
+    scene.add(ring);
+  }
+
   // --- the pieces ---------------------------------------------------------------
   for (const piece of pieces) {
     const mesh = new Mesh(
       pieceGeometry(piece.spec),
-      new MeshStandardMaterial({ color: new Color(piece.spec.color), roughness: 0.45, metalness: 0 }),
+      new MeshPhysicalMaterial({ color: new Color(piece.spec.color), roughness: 0.36, metalness: 0,
+        clearcoat: 0.3, clearcoatRoughness: 0.4, bumpMap: grain, bumpScale: 0.0015 }),
     );
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -251,11 +283,15 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
     sync(candidates);
     scene.updateMatrixWorld();
     raycaster.setFromCamera(toNdc(clientX, clientY), camera);
-    const meshes = candidates.map((piece) => piece.mesh);
-    // The lid is in the list so anything behind it, including a piece that already
-    // fell in, stays out of reach.
+    const reachable = candidates.filter((piece) => {
+      const p = piece.body.translation();
+      return Math.hypot(p.x, p.z) > U(PAIL_OUTER_R) || p.y + U(PIECE_T) > LID_BOTTOM_Y;
+    });
+    const meshes = reachable.map((piece) => piece.mesh);
+    // A block wedged in a bore stays selectable through the lip. Fully deposited
+    // blocks are filtered out above so picking never reaches into the pail.
     for (const hit of raycaster.intersectObjects([...meshes, lid], false)) {
-      if (hit.object === lid) return null;
+      if (hit.object === lid) continue;
       const piece = candidates.find((candidate) => candidate.mesh === hit.object);
       if (piece) return piece;
     }
@@ -337,6 +373,7 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
     carryPoint,
     project,
     resize,
+    rotateView,
     inspect,
     debug: { scene, sun },
   };

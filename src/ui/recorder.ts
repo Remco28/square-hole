@@ -98,7 +98,8 @@ export class MemeRecorder {
         extension,
         seconds: this.lastSeconds,
       });
-      this.stream?.getTracks().forEach((track) => track.stop());
+      // Audio tracks belong to the shared sound engine, not this recording.
+      this.stream?.getVideoTracks().forEach((track) => track.stop());
       this.stream = null;
       this.chunks = [];
     };

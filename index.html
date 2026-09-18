@@ -16,7 +16,7 @@
 
     <section id="puzzle" class="panel">
       <canvas id="gl" aria-label="Shape sorter. Drag a piece over a hole, rotate it, and let go."></canvas>
-      <p id="hint">Drag a piece over the square hole. Rotate with ⟲ ⟳, the wheel, or a two-finger twist, then let go.</p>
+      <p id="hint">Drag a piece & release. Twist with two fingers to turn it.<br>⟲ ⟳ turns the view.</p>
       <a id="credit" href="https://www.youtube.com/watch?v=cUbIkNUFs-4" target="_blank" rel="noopener" aria-label="Watch the original video on YouTube" title="The original">
         <svg viewBox="0 0 28 20" width="26" height="19" aria-hidden="true">
           <rect x="0.5" y="0.5" width="27" height="19" rx="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
@@ -24,9 +24,9 @@
         </svg>
       </a>
       <div id="toolbar">
-        <div class="group" role="group" aria-label="Rotate the held piece">
-          <button id="rotate-left" type="button" aria-label="Rotate counter-clockwise" title="Grab a piece, then rotate it (Q)" disabled>⟲</button>
-          <button id="rotate-right" type="button" aria-label="Rotate clockwise" title="Grab a piece, then rotate it (E)" disabled>⟳</button>
+        <div class="group" role="group" aria-label="Turn the view around the pail">
+          <button id="rotate-left" type="button" aria-label="Turn view left" title="Turn view left">⟲</button>
+          <button id="rotate-right" type="button" aria-label="Turn view right" title="Turn view right">⟳</button>
         </div>
         <div class="group">
           <button id="reset" type="button" aria-label="Put every piece back">Reset</button>

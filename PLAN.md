@@ -2,6 +2,21 @@
 
 Location: `~/Dev/square-hole` · Frontend-only SPA · No backend · No build step for assets.
 
+## September 18 polish follow-up
+
+- Pail interior is now 120 mm deep: five 18 mm pieces could stack beyond the old
+  70 mm interior. Full-round regressions cover all 120 piece orders and require
+  the entire stack to clear the underside of the lid.
+- Triangle and house outlines (and their matching holes) turned 180°.
+- Lid has an integrated rounded edge instead of an overlapping rim mesh, with
+  a smooth material and a tighter camera depth range.
+- Softer, shorter PCF shadows, a higher camera, and a wider spawn ring keep all
+  five pieces visible around the deeper pail.
+- Carry lift is 20 mm and the hole lead-in is 5 mm deep for gentler seating.
+
+The sections below retain the original design history; the current dimensions
+and interaction behavior live in `src/config.ts` and `README.md`.
+
 ## 1. Vision
 
 A browser recreation of the shape sorter joke. Two square panels: on one side a

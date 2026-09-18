@@ -1,20 +1,20 @@
 import {
   CARRY_Y,
   GRAB_GRAVITY_SCALE,
-  GRAB_MAX_ACCEL,
   GRAB_OMEGA,
   PLAY_RADIUS,
   ROTATE_STEP_DEG,
   U,
 } from '../config';
 import type { Piece, Substep } from './world';
+import { RigidBodyType } from '@dimforge/rapier3d-compat';
 
 /**
  * The hand.
  *
  * A carried piece behaves like something held rather than something thrown. A
- * critically damped spring pulls it toward the pointer on the horizontal plane
- * of the carry height, gravity is mostly taken off it, and it is held flat with
+ * kinematic hand lifts it out of contact and toward the pointer on the horizontal
+ * carry plane. It is held flat with
  * only its yaw under the player's control — which is how a real hand carries a
  * block, and it makes the puzzle about rotation and placement rather than about
  * fighting a wobbling box.
@@ -56,6 +56,10 @@ export class Grabber implements Substep {
   private lastX = 0;
   private readonly pointers = new Map<number, { x: number; y: number }>();
   private twist: { angle: number; yaw: number } | null = null;
+  private press = { x: 0, y: 0 };
+  private dragged = false;
+  private latched = false;
+  private dropOnTap = false;
 
   constructor(deps: GrabDeps) {
     this.deps = deps;
@@ -77,7 +81,7 @@ export class Grabber implements Substep {
   /** Turn the held piece. Positive is clockwise as seen on screen. */
   rotate(radians: number): void {
     if (!this.held) return;
-    this.yaw += radians;
+    this.yaw -= radians;
   }
 
   rotateSteps(steps: number): void {
@@ -88,12 +92,17 @@ export class Grabber implements Substep {
   drop(): void {
     const held = this.held;
     if (!held) return;
+    held.body.setBodyType(RigidBodyType.Dynamic, true);
+    held.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    held.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
     held.body.setGravityScale(1, true);
     held.body.wakeUp();
     this.held = null;
     this.carrier = null;
     this.rotator = null;
     this.twist = null;
+    this.latched = false;
+    this.dropOnTap = false;
     this.pointers.clear();
     this.deps.onChange?.(null);
   }
@@ -103,20 +112,14 @@ export class Grabber implements Substep {
     if (!held) return;
     const body = held.body;
     const position = body.translation();
-    const velocity = body.linvel();
-    const omega = GRAB_OMEGA;
-
     const target = this.clampedTarget();
-    const ax = (target.x - position.x) * omega * omega - velocity.x * 2 * omega;
-    const ay = (CARRY_Y - position.y) * omega * omega - velocity.y * 2 * omega;
-    const az = (target.z - position.z) * omega * omega - velocity.z * 2 * omega;
-
-    const magnitude = Math.hypot(ax, ay, az);
-    const scale = magnitude > GRAB_MAX_ACCEL ? GRAB_MAX_ACCEL / magnitude : 1;
-    const impulse = body.mass() * dt * scale;
-    body.applyImpulse({ x: ax * impulse, y: ay * impulse, z: az * impulse }, true);
-    body.setRotation(yawQuaternion(this.yaw), true);
-    body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    const blend = 1 - Math.exp(-GRAB_OMEGA * dt);
+    body.setNextKinematicTranslation({
+      x: position.x + (target.x - position.x) * blend,
+      y: position.y + (CARRY_Y - position.y) * blend,
+      z: position.z + (target.z - position.z) * blend,
+    });
+    body.setNextKinematicRotation(yawQuaternion(this.yaw));
   }
 
   /** Keeps a carried piece inside the play area so it can never be lost off-screen. */
@@ -131,11 +134,19 @@ export class Grabber implements Substep {
 
   private onDown = (event: PointerEvent): void => {
     if (!this.enabled) return;
+    if (this.held && this.latched && event.button === 0 && this.pointers.size === 0) {
+      this.dropOnTap = true;
+      this.latched = false;
+      this.carrier = event.pointerId;
+      this.press = { x: event.clientX, y: event.clientY };
+      this.dragged = false;
+    }
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     this.deps.element.setPointerCapture?.(event.pointerId);
 
     // Two fingers twist. The distance between them sets the piece's angle.
     if (this.pointers.size >= 2 && this.held) {
+      this.dragged = true;
       const [a, b] = [...this.pointers.values()];
       this.twist = { angle: Math.atan2(b.y - a.y, b.x - a.x), yaw: this.yaw };
       return;
@@ -157,10 +168,14 @@ export class Grabber implements Substep {
     const position = piece.body.translation();
     this.held = piece;
     this.carrier = event.pointerId;
-    this.yaw = 0;
+    this.press = { x: event.clientX, y: event.clientY };
+    this.dragged = false;
+    const q = piece.body.rotation();
+    this.yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
     this.offset = { x: position.x - point.x, z: position.z - point.z };
     this.target = { x: position.x, z: position.z };
     piece.body.setGravityScale(GRAB_GRAVITY_SCALE, true);
+    piece.body.setBodyType(RigidBodyType.KinematicPositionBased, true);
     piece.body.wakeUp();
     this.deps.onChange?.(piece);
   };
@@ -170,10 +185,11 @@ export class Grabber implements Substep {
       this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     }
     if (!this.held) return;
+    if (event.pointerId === this.carrier && Math.hypot(event.clientX - this.press.x, event.clientY - this.press.y) > 5) this.dragged = true;
 
     if (this.twist && this.pointers.size >= 2) {
       const [a, b] = [...this.pointers.values()];
-      this.yaw = this.twist.yaw + (Math.atan2(b.y - a.y, b.x - a.x) - this.twist.angle);
+      this.yaw = this.twist.yaw - (Math.atan2(b.y - a.y, b.x - a.x) - this.twist.angle);
       return;
     }
     if (event.pointerId === this.rotator) {
@@ -181,7 +197,7 @@ export class Grabber implements Substep {
       this.lastX = event.clientX;
       return;
     }
-    if (event.pointerId !== this.carrier) return;
+    if (event.pointerId !== this.carrier && !this.latched) return;
     const point = this.deps.plane(event.clientX, event.clientY);
     if (point) this.target = { x: point.x + this.offset.x, z: point.z + this.offset.z };
   };
@@ -190,7 +206,19 @@ export class Grabber implements Substep {
     this.pointers.delete(event.pointerId);
     if (this.pointers.size < 2) this.twist = null;
     if (event.pointerId === this.rotator) this.rotator = null;
-    if (event.pointerId === this.carrier) this.drop();
+    if (event.pointerId === this.carrier) {
+      if (event.type === 'pointerup' && this.pointers.size > 0) {
+        const [id, pointer] = [...this.pointers.entries()][0];
+        this.carrier = id;
+        const point = this.deps.plane(pointer.x, pointer.y);
+        if (point) this.offset = { x: this.target.x - point.x, z: this.target.z - point.z };
+      }
+      else if (event.type === 'pointercancel' || event.type === 'lostpointercapture' || (event.type === 'pointerup' && (this.dragged || this.dropOnTap))) this.drop();
+      else if (event.type === 'pointerup') {
+        this.latched = true;
+        this.carrier = null;
+      }
+    }
   };
 
   private onWheel = (event: WheelEvent): void => {

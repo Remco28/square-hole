@@ -15,6 +15,7 @@
   if (!app) return { error: 'no dev handle' };
 
   const { sim, viewer, grabber, holeCentres } = app;
+  const { LID_BOTTOM_Y, PAIL_OUTER_R, PAIL_WALL, U } = await import('/src/config.ts');
   const canvas = viewer.gl;
   const at = (x, y, z) => viewer.project({ x, y, z });
 
@@ -101,10 +102,10 @@
   // Through the hole means it is now below the lid plate and inside the pail's
   // wall, not sitting on the counter somewhere beside the pail.
   // Toy millimetres to world metres, so 77 mm of pail bore is 0.77 of a world unit.
-  const insideWall = Math.hypot(landed.x, landed.z) < 0.77;
+  const insideWall = Math.hypot(landed.x, landed.z) < U(PAIL_OUTER_R - PAIL_WALL);
   report.insidePailWall = insideWall;
-  report.belowLid = landed.y < 0.7;
-  report.fellIntoPail = insideWall && landed.y < 0.7;
+  report.belowLid = landed.y < LID_BOTTOM_Y;
+  report.fellIntoPail = insideWall && landed.y < LID_BOTTOM_Y;
 
   return report;
 })();

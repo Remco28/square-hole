@@ -28,11 +28,17 @@ const world = (points: Vec2[]): Vec2[] => points.map((p) => ({ x: U(p.x), y: U(p
 /** The lid: a round plate with one hole per shape, each flared at the top face. */
 export function lidGeometry(): BufferGeometry {
   const outer: Profile = {
-    points: circlePoints(U(LID_R)),
+    points: circlePoints(U(LID_R), 128),
     centre: { x: 0, y: 0 },
     rings: [
-      { y: 0, expand: 0 },
-      { y: -U(LID_T), expand: 0 },
+      // One continuous rounded edge. An overlapping decorative torus caused
+      // a dotted seam and unstable self-shadows as the view turned.
+      { y: 0, expand: -U(1.5) },
+      { y: -U(0.4), expand: -U(0.5) },
+      { y: -U(1.5), expand: 0 },
+      { y: -U(LID_T - 1.5), expand: 0 },
+      { y: -U(LID_T - 0.4), expand: -U(0.5) },
+      { y: -U(LID_T), expand: -U(1.5) },
     ],
     smooth: true,
   };
@@ -58,8 +64,10 @@ export function pieceGeometry(spec: ShapeSpec): BufferGeometry {
     points: world(spec.outline),
     centre: { x: 0, y: 0 },
     rings: [
-      { y: half, expand: 0 },
-      { y: -half, expand: 0 },
+      { y: half, expand: -U(0.25) },
+      { y: half - U(0.25), expand: 0 },
+      { y: -half + U(0.25), expand: 0 },
+      { y: -half, expand: -U(0.25) },
     ],
     smooth: spec.kind === 'circle',
   });

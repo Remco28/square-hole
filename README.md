@@ -26,9 +26,10 @@ If you deny the camera the puzzle still works, you just lose the mirror.
 
 | Action | How |
 |---|---|
-| Carry a piece | Press on it and drag |
-| Drop it | Release |
-| Rotate it | Grab it first, then `⟲` / `⟳`, `Q` / `E`, `←` / `→`, the mouse wheel, a right-drag, or a two-finger twist |
+| Carry a piece | Drag, or tap to pick up and tap again to drop |
+| Drop it | Release a drag, or tap again after picking up |
+| Rotate a block | Two-finger twist while holding it; desktop: `Q` / `E`, `←` / `→`, or mouse wheel |
+| Turn around the pail | `⟲` / `⟳` |
 | Put everything back | `Reset` |
 | Record both panels | `Record` (records to a downloadable file when you stop) |
 
@@ -63,6 +64,32 @@ agent-browser eval "$(cat tests/probe.mjs)"   # grab, carry, rotate, drop a piec
 
 See `PLAN.md` for the design, the bugs that were worth the digging, and the sound
 decision that is still open.
+
+## Static hosting
+
+Live site: [squarehole.teamremco.org](https://squarehole.teamremco.org)
+
+`npm run build` creates `dist/`. Vite uses relative asset URLs (`base: './'`),
+so a repository subdirectory or a custom domain both work. There is no server
+runtime. Camera and microphone access require HTTPS (or localhost), and all
+media stays in the browser.
+
+GitHub Pages is built from `master` by `.github/workflows/pages.yml`. After the
+first push, in the GitHub repo:
+
+1. **Settings → Pages → Source:** GitHub Actions
+2. **Custom domain:** `squarehole.teamremco.org`
+3. **DNS:** CNAME `squarehole` → `remco28.github.io`
+
+GitHub ignores a committed `CNAME` when Pages is served from Actions; the
+`public/CNAME` file is still copied into `dist/` as a record of the intended
+host. Enforce HTTPS once the domain shows as verified.
+
+The toy uses plain plastic materials with fine surface grain, beveled blocks,
+and molded rim details. Pickup uses a kinematic hand so a rejected piece can
+always be lifted out; release restores gravity and physical collisions.
+The 120 mm interior leaves room for all five blocks beneath one hole, including
+a stack. Regression tests drop complete rounds in all 120 possible orders.
 
 ## Recorded output
 

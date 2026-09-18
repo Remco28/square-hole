@@ -160,7 +160,7 @@ export async function createSim(): Promise<Sim> {
       y: U(PIECE_T) / 2,
       z: direction.y * SPAWN_R,
     };
-    // No CCD here, on purpose. A piece is released from 26 mm above the lid and
+    // No CCD here, on purpose. A piece is released from 20 mm above the lid and
     // covers about 20 world millimetres per step, while the plate is 160 world
     // millimetres thick, so a piece cannot cross it in one step. Turning CCD on
     // was tried and changed nothing except to add moving parts.

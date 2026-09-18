@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { CARRY_LIFT, LID_BOTTOM_Y, LID_TOP_Y, PAIL_OUTER_R, U } from '../src/config';
+import { CARRY_LIFT, LID_BOTTOM_Y, LID_TOP_Y, PAIL_OUTER_R, PIECE_T, U } from '../src/config';
 import { holeCentres } from '../src/geometry/bodies';
 import { SHAPES, type ShapeKind } from '../src/geometry/profiles';
 import { createSim, type Piece, type Sim } from '../src/sim/world';
@@ -53,6 +53,35 @@ function drop(kind: ShapeKind, holeKind: ShapeKind, yawDeg = 0, offsetMm = 0): b
 }
 
 describe('the square hole takes everything', () => {
+  const kinds = SHAPES.map(spec => spec.kind);
+  const permutations = (remaining: ShapeKind[]): ShapeKind[][] => remaining.length === 0
+    ? [[]]
+    : remaining.flatMap((kind, i) => permutations(remaining.filter((_, j) => i !== j)).map(tail => [kind, ...tail]));
+  const orders = permutations(kinds);
+  it.each(orders.map(order => [order.join(', '), order] as const))(
+    'has room for the whole round: %s', (_label, order) => {
+      sim.reset();
+      const hole = holeCentres.find(h => h.kind === 'square')!;
+      for (const kind of order) {
+        const piece = sim.pieces.find(p => p.spec.kind === kind)!;
+        piece.body.setTranslation({ x: hole.x, y: LID_TOP_Y + U(CARRY_LIFT), z: hole.z }, true);
+        for (let i = 0; i < 360; i++) sim.step(1 / 120);
+      }
+      for (const piece of sim.pieces) {
+        expect(insidePail(piece), piece.spec.kind).toBe(true);
+        const q = piece.body.rotation();
+        const p = piece.body.translation();
+        // Highest point of the un-beveled prism, including a tilted stack.
+        const maxY = Math.max(...piece.spec.outline.flatMap(v => [-1, 1].map(sign =>
+          p.y + 2 * (q.x * q.y + q.w * q.z) * U(v.x)
+          + (1 - 2 * (q.x * q.x + q.z * q.z)) * sign * U(PIECE_T) / 2
+          + 2 * (q.y * q.z - q.w * q.x) * U(v.y),
+        )));
+        expect(maxY, `${piece.spec.kind} must clear the underside`).toBeLessThan(LID_BOTTOM_Y);
+      }
+    },
+  );
+
   it.each(SHAPES.map((spec) => [spec.label, spec.kind] as const))(
     'drops the %s in',
     (_label, kind) => {

@@ -154,6 +154,11 @@ export function buildSolid(outer: Profile, holes: Profile[] = []): BufferGeometr
 
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
+  const uv: number[] = [];
+  for (let i = 0; i < positions.length; i += 3) {
+    uv.push(positions[i] + positions[i + 1] * 0.7, positions[i + 2] + positions[i + 1] * 0.7);
+  }
+  geometry.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();

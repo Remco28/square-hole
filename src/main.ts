@@ -64,10 +64,6 @@ async function main(): Promise<void> {
     plane: (x, y) => viewer.carryPoint(x, y),
     onChange: (piece) => {
       canvas.dataset.holding = piece ? 'true' : 'false';
-      // Rotation only means something while a piece is held: say so, otherwise
-      // the buttons look broken — they are not, there is just nothing to turn.
-      rotateLeft.disabled = !piece;
-      rotateRight.disabled = !piece;
       if (piece) hint.hidden = true;
     },
   });
@@ -81,7 +77,10 @@ async function main(): Promise<void> {
   };
 
   // --- controls ---------------------------------------------------------------
-  const rotate = (steps: number) => () => grabber.rotateSteps(steps);
+  const rotate = (steps: number) => () => {
+    grabber.drop();
+    viewer.rotateView(steps);
+  };
   rotateLeft.addEventListener('click', rotate(-1));
   rotateRight.addEventListener('click', rotate(1));
 
@@ -104,10 +103,12 @@ async function main(): Promise<void> {
     recordButton.title = 'This browser cannot record a canvas stream.';
   }
   recorder.onFinished(({ url, extension }) => {
+    recordButton.disabled = false;
     download(url, extension);
     recordButton.dataset.saved = 'true';
     recordButton.textContent = 'Saved';
     window.setTimeout(() => {
+      if (recorder.recording) return;
       recordButton.dataset.saved = 'false';
       recordButton.textContent = 'Record';
     }, 2500);
@@ -115,14 +116,19 @@ async function main(): Promise<void> {
   recordButton.addEventListener('click', () => {
     void (async () => {
       if (recorder.recording) {
+        recordButton.disabled = true;
         recorder.stop();
         sfx.detachMic();
         stopMic();
         recorder.clearAudio();
         recordButton.dataset.recording = 'false';
-        recordButton.textContent = 'Record';
+        recordButton.textContent = 'Saving…';
         return;
       }
+      recordButton.disabled = true;
+      recordButton.dataset.saved = 'false';
+      recordButton.textContent = 'Starting…';
+      try {
       // A click is a gesture, so the synth can start here if it hasn't yet.
       await sfx.unlock();
       const mic = await requestMic();
@@ -141,6 +147,16 @@ async function main(): Promise<void> {
         sfx.detachMic();
         stopMic();
         recorder.clearAudio();
+        recordButton.textContent = 'Record';
+      }
+      } catch (error) {
+        sfx.detachMic();
+        stopMic();
+        recorder.clearAudio();
+        recordButton.textContent = 'Try again';
+        console.error('Recording could not start', error);
+      } finally {
+        recordButton.disabled = false;
       }
     })();
   });

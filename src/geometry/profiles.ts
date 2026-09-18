@@ -114,14 +114,14 @@ export const SHAPES: ShapeSpec[] = [
     kind: 'triangle',
     label: 'Triangle',
     color: '#5aa66a',
-    outline: triangleOutline(TRIANGLE_SIDE),
+    outline: triangleOutline(TRIANGLE_SIDE).map(p => ({ x: -p.x, y: -p.y })),
     hole: onRing(306),
   },
   {
     kind: 'house',
     label: 'House',
     color: '#9b6bc4',
-    outline: houseOutline(HOUSE_W, HOUSE_BODY, HOUSE_ROOF),
+    outline: houseOutline(HOUSE_W, HOUSE_BODY, HOUSE_ROOF).map(p => ({ x: -p.x, y: -p.y })),
     hole: onRing(18),
   },
 ];

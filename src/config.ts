@@ -22,7 +22,9 @@ export const FIXED_DT = 1 / 120;
 
 export const PAIL_OUTER_R = 80;
 export const PAIL_WALL = 3;
-export const PAIL_DEPTH = 70;
+// Five 18 mm blocks can stack under one hole. Leave room above that stack,
+// including pieces that settle on an edge, rather than relying on them scattering.
+export const PAIL_DEPTH = 120;
 export const LID_R = 88;
 /**
  * The plate's thickness, and the most important number in the game.
@@ -39,7 +41,7 @@ export const LID_T = 16;
 
 /** How far a hole opens up at the lid's top face, and over what depth. */
 export const LID_FLARE = 1.8;
-export const LID_FLARE_DEPTH = 3.5;
+export const LID_FLARE_DEPTH = 5;
 
 /** The piece the square hole was designed for. */
 export const SQUARE_SIDE = 25;
@@ -74,7 +76,7 @@ export const HOLE_RING_R = 42;
  * drop is a gentle placement rather than a slam, which is also what stops pieces
  * tipping enough to wedge.
  */
-export const CARRY_LIFT = 26;
+export const CARRY_LIFT = 20;
 
 /** Nothing may be carried past this radius, so pieces can't be lost off-screen. */
 export const PLAY_RADIUS = 200;
@@ -86,7 +88,7 @@ export const COUNTER_HALF = U(300);
 export const LID_BOTTOM_Y = U(PAIL_DEPTH);
 export const LID_TOP_Y = LID_BOTTOM_Y + U(LID_T);
 export const CARRY_Y = LID_TOP_Y + U(CARRY_LIFT);
-export const SPAWN_R = U(150);
+export const SPAWN_R = U(170);
 
 /**
  * How thick the pail's own floor is, below the counter's surface.
