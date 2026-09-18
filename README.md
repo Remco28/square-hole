@@ -4,8 +4,9 @@ A browser recreation of the shape sorter joke. Two square panels: a mirror of yo
 own webcam on one side, a real physics toy on the other. Five pieces, five holes,
 and every piece also fits through the square hole — if you turn it the right way.
 
-Seat all five and the round is over: the pail picks itself up, tips over and pours
-the pieces out onto the counter, then everything goes back where it started.
+Get all five into the pail and admire your work. `Reset` sends every piece back
+to its starting place whenever you want another round. The original that started
+it all is <a href="https://www.youtube.com/watch?v=cUbIkNUFs-4">here</a>.
 
 Everything runs in the browser. There is no backend, no API key, and no build-time
 asset pipeline: the lid, the pail, and the pieces are all generated in code, and
@@ -27,12 +28,12 @@ If you deny the camera the puzzle still works, you just lose the mirror.
 |---|---|
 | Carry a piece | Press on it and drag |
 | Drop it | Release |
-| Rotate it | `⟲` / `⟳`, `Q` / `E`, `←` / `→`, the mouse wheel, a right-drag, or a two-finger twist |
-| Put everything back | `Reset` (cuts the dump short if it is mid-flight) |
+| Rotate it | Grab it first, then `⟲` / `⟳`, `Q` / `E`, `←` / `→`, the mouse wheel, a right-drag, or a two-finger twist |
+| Put everything back | `Reset` |
 | Record both panels | `Record` (records to a downloadable file when you stop) |
 
-Emptying the pail is not a control. It happens on its own once the fifth piece is
-in and nothing is moving, and grabbing is switched off while it runs.
+There is no auto-show at the end of a round: when the fifth piece is in, the
+game just sits there looking pleased with itself until you hit `Reset`.
 
 A carried piece rides flat, the way a hand holds a block, so the puzzle is about
 rotation and placement rather than about fighting a wobbling box. Releasing is the
@@ -53,12 +54,11 @@ ever helps it along.
   end up inside the pail.
 
 Two scripts drive the real page in a real browser, for the things a headless test
-cannot see. Both need `npm run dev` running:
+cannot see. Needs `npm run dev` running:
 
 ```bash
 agent-browser open http://127.0.0.1:5174/
 agent-browser eval "$(cat tests/probe.mjs)"   # grab, carry, rotate, drop a piece
-agent-browser eval "$(cat tests/show.mjs)"    # the end-of-round dump, frame by frame
 ```
 
 See `PLAN.md` for the design, the bugs that were worth the digging, and the sound

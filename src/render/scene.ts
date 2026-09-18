@@ -1,6 +1,7 @@
 import {
   ACESFilmicToneMapping,
   BackSide,
+  BufferGeometry,
   CanvasTexture,
   CircleGeometry,
   Color,
@@ -52,6 +53,14 @@ export interface Viewer {
   /** Viewport pixels for a world point, so overlays and tools can find the scene. */
   project(point: { x: number; y: number; z: number }): { x: number; y: number };
   resize(): void;
+  /** Escape hatch for live diagnosis from the console (`agent-browser eval`). */
+  debug: { scene: Scene; sun: DirectionalLight };
+  /** What the pointer ray hits: mesh name, world point, face normal. */
+  inspect(clientX: number, clientY: number): {
+    mesh: string;
+    point: [number, number, number];
+    normal: [number, number, number];
+  } | null;
 }
 
 /**
@@ -142,6 +151,7 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
   );
   counter.position.y = -U(20) / 2;
   counter.receiveShadow = true;
+  counter.name = 'counter';
   scene.add(counter);
 
   const plastic = new MeshPhysicalMaterial({
@@ -165,15 +175,18 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
   );
   pail.castShadow = true;
   pail.receiveShadow = true;
+  pail.name = 'pail';
   scene.add(pail);
 
   // A dark sleeve and floor inside, so the pail reads as a cavity rather than a tube.
+  // The sleeve stands just inside the bore wall: coplanar with it, the two
+  // surfaces z-fight and the bore shows striped bands through the lid's holes.
   const cavity = new MeshStandardMaterial({ color: 0x1d2027, roughness: 0.95, side: BackSide });
   const sleeve = new Mesh(
     new CylinderGeometry(
-      U(PAIL_OUTER_R - PAIL_WALL),
-      U(PAIL_OUTER_R - PAIL_WALL),
-      U(PAIL_DEPTH),
+      U(PAIL_OUTER_R - PAIL_WALL - 1.5),
+      U(PAIL_OUTER_R - PAIL_WALL - 1.5),
+      U(PAIL_DEPTH - 2),
       48,
       1,
       true,
@@ -181,11 +194,13 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
     cavity,
   );
   sleeve.position.y = U(PAIL_DEPTH) / 2;
+  sleeve.name = 'sleeve';
   scene.add(sleeve);
   const pailFloor = new Mesh(new CircleGeometry(U(PAIL_OUTER_R - PAIL_WALL), 48), cavity.clone());
   (pailFloor.material as MeshStandardMaterial).side = DoubleSide;
   pailFloor.rotation.x = -Math.PI / 2;
   pailFloor.position.y = 0.004;
+  pailFloor.name = 'pailFloor';
   scene.add(pailFloor);
 
   // --- the lid ------------------------------------------------------------------
@@ -193,6 +208,7 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
   lid.position.y = LID_TOP_Y;
   lid.castShadow = true;
   lid.receiveShadow = true;
+  lid.name = 'lid';
   scene.add(lid);
 
   // --- the pieces ---------------------------------------------------------------
@@ -203,6 +219,7 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
     );
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    mesh.name = `piece-${piece.spec.kind}`;
     piece.mesh = mesh;
     scene.add(mesh);
   }
@@ -262,6 +279,47 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
     };
   };
 
+  const faceNormal = new Vector3();
+  const inspect = (clientX: number, clientY: number) => {
+    sync([]);
+    scene.updateMatrixWorld();
+    raycaster.setFromCamera(toNdc(clientX, clientY), camera);
+    const hits = raycaster.intersectObjects(scene.children, true);
+    const hit = hits[0];
+    if (!hit) return null;
+    const mesh = hit.object as Mesh;
+    const geometry = mesh.geometry as BufferGeometry;
+    if (hit.face) {
+      faceNormal.set(hit.face.normal.x, hit.face.normal.y, hit.face.normal.z);
+      if (geometry.hasAttribute('normal')) {
+        // Interpolated vertex normal: what the shading actually uses.
+        const n = geometry.getAttribute('normal');
+        const { a, b, c } = { a: hit.face.a, b: hit.face.b, c: hit.face.c };
+        faceNormal
+          .set(0, 0, 0)
+          .add(new Vector3(n.getX(a), n.getY(a), n.getZ(a)))
+          .add(new Vector3(n.getX(b), n.getY(b), n.getZ(b)))
+          .add(new Vector3(n.getX(c), n.getY(c), n.getZ(c)))
+          .normalize();
+      }
+      faceNormal.transformDirection(mesh.matrixWorld);
+    }
+    const name: string = mesh.name || mesh.type;
+    return {
+      mesh: name,
+      point: [hit.point.x, hit.point.y, hit.point.z].map((v) => +v.toFixed(3)) as [
+        number,
+        number,
+        number,
+      ],
+      normal: [faceNormal.x, faceNormal.y, faceNormal.z].map((v) => +v.toFixed(3)) as [
+        number,
+        number,
+        number,
+      ],
+    };
+  };
+
   const resize = (): void => {
     const width = gl.clientWidth || 1;
     const height = gl.clientHeight || 1;
@@ -279,5 +337,7 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
     carryPoint,
     project,
     resize,
+    inspect,
+    debug: { scene, sun },
   };
 }

@@ -5,6 +5,7 @@ import {
   GRAB_OMEGA,
   PLAY_RADIUS,
   ROTATE_STEP_DEG,
+  U,
 } from '../config';
 import type { Piece, Substep } from './world';
 
@@ -40,8 +41,8 @@ const yawQuaternion = (yaw: number) => ({
 
 export class Grabber implements Substep {
   /**
-   * Set false while something else owns the toy, so a click during the dump does
-   * not pick a piece up out of the middle of it.
+   * Master switch for the hand. Currently always on during play; the flag stays
+   * so some future mode (a replay, a cutscene) can own the toy for a while.
    */
   enabled = true;
   private readonly deps: GrabDeps;
@@ -120,9 +121,11 @@ export class Grabber implements Substep {
 
   /** Keeps a carried piece inside the play area so it can never be lost off-screen. */
   private clampedTarget(): { x: number; z: number } {
+    // PLAY_RADIUS is toy millimetres; the target rides in world metres.
+    const limit = U(PLAY_RADIUS);
     const radius = Math.hypot(this.target.x, this.target.z);
-    if (radius <= PLAY_RADIUS) return this.target;
-    const scale = PLAY_RADIUS / radius;
+    if (radius <= limit) return this.target;
+    const scale = limit / radius;
     return { x: this.target.x * scale, z: this.target.z * scale };
   }
 

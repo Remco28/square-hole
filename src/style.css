@@ -122,6 +122,11 @@ body {
   cursor: pointer;
 }
 
+#toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 #toolbar button:hover {
   background: rgb(34 39 47 / 88%);
 }
@@ -165,4 +170,19 @@ body {
     font-size: 11px;
     padding-bottom: 12px;
   }
+}
+
+#credit {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  color: #8f8a7e;
+  opacity: 0.5;
+  filter: grayscale(1);
+  line-height: 0;
+  transition: opacity 0.2s ease;
+}
+
+#credit:hover {
+  opacity: 0.9;
 }

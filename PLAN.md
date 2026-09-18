@@ -24,9 +24,9 @@ the shape sorter is you.
 - Hybrid grabbing: drag to carry, release to drop, and rotate with the on-screen
   buttons, `Q`/`E`, the arrow keys, the mouse wheel, a right-drag, or a
   two-finger twist.
-- The pail empties itself once every piece is in: the lid is set aside, the pail
-  tips over its own rim and pours the pieces onto the counter, then the pail is
-  righted, the lid comes home, and the pieces go back to their starting places.
+- The round ends quietly: when the fifth piece is in, the game sits there looking
+  pleased with itself until `Reset` sends every piece home. (The self-emptying
+  pail of v1 was removed — see §6.)
 - Client-side recording of both panels into one downloadable video.
 - Out of scope: sound (**see §7**), any reaction layer, scoreboards, a backend,
   deployment.
@@ -52,7 +52,7 @@ the lid is a plate resting on the rim.
   bigger the square hole is than the square piece — and therefore how much room
   every other piece gets, whether or not it is being rotated.
 
-At 2.5 mm: the square hole is 27.5 mm across, the pieces sit around 25 mm, and
+At 3 mm: the square hole is 28 mm across, the pieces sit around 25 mm, and
 each needs roughly 1 mm of clearance on every side. Verified by
 `tests/fit.test.ts` (analytically, in 2D) and `tests/drop.test.ts` (physically,
 in a headless Rapier world):
@@ -75,7 +75,8 @@ in; `tests/drop.test.ts` covers that directly.
 
 ## 5. Findings worth keeping
 
-Four real bugs, all invisible to reasoning and found by measuring:
+Four real bugs, all invisible to reasoning and found by measuring (3 and 4 date
+from the removed pour in §6, kept because the lessons are cheap to re-learn):
 
 1. **Rapier trimesh flags.** The lid is a closed solid built from a single
    generator, with duplicated vertices so that sharp edges keep their own
@@ -116,39 +117,15 @@ Four real bugs, all invisible to reasoning and found by measuring:
 Also worth remembering: CCD was tried and removed. It changed no outcome, and
 the plate is thick enough that a piece cannot cross it in one step.
 
-## 6. Emptying the pail
+## 6. End of round (removed)
 
-Only two bodies in the scene are ever moved: the lid and the pail, both
-`kinematicPositionBased`. Left alone a kinematic body behaves exactly like the
-fixed one it replaced, and driven it sweeps properly — a teleporting pail would
-leave the pieces behind, and a fixed one could not move at all.
-
-The pail is a **tub with its own floor**, not the open wall it was. The disc is
-buried so its top face is exactly the counter the pieces already rest on, which
-leaves normal play untouched and only shows up once the pail is picked up.
-
-The beats, and why each one is where it is:
-
-| Beat | Why |
-|---|---|
-| lid aside | the lid overhangs the rim, so the pail cannot move with it there |
-| tip | rotates about the **rim nearest the camera**, the way you tip a bucket. Past vertical the rim would be driven through the counter, so the pail is raised by exactly how far it would have sunk: it ends up standing on the rim it just rolled over, which is what a bucket does |
-| shake | a decaying wobble, to shift a straggler |
-| settle | held tipped until the pieces have stopped, plus a beat so the pile is seen. The cap matters: one piece wedged in a corner must not stall the game |
-| right | picked up off its rim and turned upright **in the air**. Righting it on the rim would drag it through the pile, and the pieces are all over the counter by now |
-| lower | set back down on its base |
-| lid back | cannot be any earlier: it overhangs the rim, so the pail has to be sitting under it first |
-| reset | the pieces go home, last, so nothing can knock them out of place afterwards |
-
-Four or five seconds of show, once per round. Ordering is the whole trick — the pieces go
-home only after everything else is back. Doing it earlier was tried and measured:
-the pail swinging back over its rim clipped a piece that had just been sent home
-and shoved it 35 mm across the counter.
-
-Kinematic bodies ignore nothing, but they do not *react* either: the pail pushes
-pieces and is never pushed by them. That is what makes this safe to drive from a
-state machine inside the fixed step, where the physics sees a sweep rather than a
-teleport.
+The pail used to empty itself once every piece was in: lid aside, tip about the
+rim, shake, settle, right in the air, lower, lid back, pieces home. Removed —
+playtesting showed the pour reading as pieces "just falling out", and the pail
+coming back down could cover pieces lying in its footprint ("under the bucket").
+`Reset` is the whole mechanism now: it drops any held piece and sends everything
+home. The lid, pail and counter are fixed bodies; the pieces are the only moving
+bodies in the scene. `Sim.allBuried` stays as the round-complete query.
 
 ## 7. Sound (implemented)
 
@@ -178,7 +155,6 @@ src/
   sim/
     world.ts             Rapier world, fixed 120 Hz timestep, sleeps when idle
     grab.ts              the hand: critically damped spring, flat hold, yaw only
-    dump.ts              the end-of-round show, driving the lid and the pail
   render/scene.ts        three.js scene, lighting, materials, picking
   ui/webcam.ts           the mirror
   ui/recorder.ts         both panels into one canvas, MediaRecorder out

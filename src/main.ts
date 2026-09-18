@@ -1,6 +1,5 @@
 import { holeCentres } from './geometry/bodies';
 import { createViewer, type Viewer } from './render/scene';
-import { BucketDump } from './sim/dump';
 import { Grabber } from './sim/grab';
 import { createSim, type Sim, type Substep } from './sim/world';
 import { ImpactWatcher } from './audio/impacts';
@@ -65,18 +64,18 @@ async function main(): Promise<void> {
     plane: (x, y) => viewer.carryPoint(x, y),
     onChange: (piece) => {
       canvas.dataset.holding = piece ? 'true' : 'false';
+      // Rotation only means something while a piece is held: say so, otherwise
+      // the buttons look broken — they are not, there is just nothing to turn.
+      rotateLeft.disabled = !piece;
+      rotateRight.disabled = !piece;
       if (piece) hint.hidden = true;
     },
   });
 
-  // The pail gets emptied once the last piece is in, and the two of them are the
-  // only things in the scene that are ever driven from outside the solver.
-  const dump = new BucketDump(sim);
+  // The hand runs inside the fixed step so a carried piece follows the pointer
+  // exactly, even on the step anything else is moving underneath it.
   const drivers: Substep = {
     before(dt) {
-      dump.before(dt);
-      // The hand runs last so that a carried piece follows the pointer exactly,
-      // even on the step the pail is moving underneath it.
       grabber.before(dt);
     },
   };
@@ -95,8 +94,6 @@ async function main(): Promise<void> {
 
   resetButton.addEventListener('click', () => {
     grabber.drop();
-    // Cuts the show short if it is mid-flight, so the toy is never left tipped.
-    dump.abort();
     sim.reset();
   });
 
@@ -172,17 +169,8 @@ async function main(): Promise<void> {
     const elapsed = Math.min((now - last) / 1000, 0.25);
     last = now;
 
-    // Every piece is in the pail and nothing is moving: that is the round over, so
-    // empty it, and the show resets the pieces itself once they have settled.
-    if (!dump.active && sim.settled() && sim.allBuried()) {
-      grabber.drop();
-      dump.start();
-    }
-    grabber.enabled = !dump.active;
-
-    // Nothing to integrate while every piece is asleep, no hand is holding one, and
-    // the pail is sitting still.
-    if (grabber.holding || dump.active || !sim.asleep()) sim.step(elapsed, drivers);
+    // Nothing to integrate while every piece is asleep and no hand is holding one.
+    if (grabber.holding || !sim.asleep()) sim.step(elapsed, drivers);
     for (const hit of impacts.observe(
       sim.pieces.map((piece) => {
         const p = piece.body.translation();
@@ -204,7 +192,7 @@ async function main(): Promise<void> {
   if (import.meta.env.DEV) {
     // A handle for inspecting and poking at the running sim from the console:
     // `squareHole.sim.pieces[0].body.translation()`, `squareHole.viewer.project(...)`.
-    Object.assign(window, { squareHole: { sim, viewer, grabber, dump, holeCentres, sfx, recorder } });
+    Object.assign(window, { squareHole: { sim, viewer, grabber, holeCentres, sfx, recorder } });
   }
 }
 

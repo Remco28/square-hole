@@ -42,15 +42,13 @@ export interface Sim {
   world: RAPIER.World;
   pieces: Piece[];
   /**
-   * The two parts that move when the pail is emptied, and the only bodies in the
-   * scene that are not nailed down. They are kinematic, so while they are left
-   * alone they behave exactly like the fixed bodies they used to be, and driving
-   * them is what makes the dump push pieces around properly instead of passing
-   * through them.
+   * The lid and the pail, both nailed down. They used to be kinematic for the
+   * end-of-round pour; with that gone they are fixed like the counter, and the
+   * pieces are the only moving bodies in the scene.
    */
   lid: RAPIER.RigidBody;
   pail: RAPIER.RigidBody;
-  /** Where the lid and the pail rest, which is where the dump puts them back. */
+  /** Where the lid rests. */
   lidHome: { x: number; y: number; z: number };
   /** Steps the world in fixed slices, calling `hook` before each one. */
   step(elapsed: number, hook?: Substep): void;
@@ -59,11 +57,8 @@ export interface Sim {
   /**
    * True when every piece has stopped moving.
    *
-   * A different question from `asleep`, and not interchangeable. Rapier will not
-   * put a body to sleep while it is resting against a body that is not static,
-   * and the pail is kinematic, so a piece leaning on it stays awake forever.
-   * Anything that waits on the pieces having stopped has to ask about their
-   * speed instead.
+   * A different question from `asleep`, asked by the settle sound: a piece can
+   * be briefly still-eyed between bounces while the solver still has it awake.
    */
   settled(): boolean;
   /** True when every piece has gone through a hole and is sitting in the pail. */
@@ -117,11 +112,11 @@ export async function createSim(): Promise<Sim> {
   );
 
   // --- the pail: a tub standing on the counter, open at the top ---
-  // Kinematic rather than fixed so the dump can pick it up. Its origin is the
-  // centre of its base, which is where a body rotates about, and that is exactly
-  // the corner the pail tips over once a hinge is applied to it.
+  // Fixed: nothing in the game moves it. Its floor collider below is buried so
+  // its top face is exactly the counter, and only shows as the dark disc a
+  // seated piece rests on.
   const pail = trimesh(pailGeometry());
-  const pailBody = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased());
+  const pailBody = world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
   world.createCollider(
     RAPIER.ColliderDesc.trimesh(pail.vertices, pail.indices, SOLID_MESH_FLAGS)
       .setFriction(0.5)
@@ -130,8 +125,7 @@ export async function createSim(): Promise<Sim> {
   );
   world.createCollider(
     // The pail's own floor, buried so its top face is the counter the pieces
-    // already rest on. Invisible until the dump, when it becomes the thing that
-    // carries the pieces up and tips them out.
+    // already rest on — a seated piece lands on it, flush and invisible.
     RAPIER.ColliderDesc.cylinder(
       U(PAIL_FLOOR_T) / 2,
       U(PAIL_OUTER_R - PAIL_WALL),
@@ -146,11 +140,7 @@ export async function createSim(): Promise<Sim> {
   const lid = trimesh(lidGeometry());
   const lidHome = { x: 0, y: LID_TOP_Y, z: 0 };
   const lidBody = world.createRigidBody(
-    RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(
-      lidHome.x,
-      lidHome.y,
-      lidHome.z,
-    ),
+    RAPIER.RigidBodyDesc.fixed().setTranslation(lidHome.x, lidHome.y, lidHome.z),
   );
   world.createCollider(
     // Slick, like moulded plastic: a piece that does catch an edge can slide free
