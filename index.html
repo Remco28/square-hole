@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0f13" />
+  <title>Square Hole · every shape fits</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <main id="app">
+    <section id="mirror" class="panel" aria-label="Mirror">
+      <video id="cam" playsinline autoplay muted></video>
+      <p id="mirror-note" hidden></p>
+    </section>
+
+    <section id="puzzle" class="panel">
+      <canvas id="gl" aria-label="Shape sorter. Drag a piece over a hole, rotate it, and let go."></canvas>
+      <p id="hint">Drag a piece over the square hole. Rotate with ⟲ ⟳, the wheel, or a two-finger twist, then let go.</p>
+      <div id="toolbar">
+        <div class="group" role="group" aria-label="Rotate the held piece">
+          <button id="rotate-left" type="button" aria-label="Rotate counter-clockwise" title="Rotate counter-clockwise (Q)">⟲</button>
+          <button id="rotate-right" type="button" aria-label="Rotate clockwise" title="Rotate clockwise (E)">⟳</button>
+        </div>
+        <div class="group">
+          <button id="reset" type="button" aria-label="Put every piece back">Reset</button>
+          <button id="record" class="primary" type="button" aria-label="Record a video of both panels">Record</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
