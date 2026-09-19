@@ -6,7 +6,7 @@ and every piece also fits through the square hole — if you turn it the right w
 
 Get all five into the pail and admire your work. `Reset` sends every piece back
 to its starting place whenever you want another round. The original that started
-it all is <a href="https://www.youtube.com/watch?v=cUbIkNUFs-4">here</a>.
+it all is <a href="https://www.youtube.com/shorts/dmohsez6fck">here</a>.
 
 Everything runs in the browser. There is no backend, no API key, and no build-time
 asset pipeline: the lid, the pail, and the pieces are all generated in code, and
