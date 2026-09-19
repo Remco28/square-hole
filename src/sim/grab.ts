@@ -27,8 +27,8 @@ export interface GrabDeps {
   element: HTMLElement;
   /** The piece under the pointer, or null. */
   pick(clientX: number, clientY: number): Piece | null;
-  /** Where the pointer ray meets the carry plane. */
-  plane(clientX: number, clientY: number): { x: number; z: number } | null;
+  /** Where the pointer ray meets a horizontal plane at world Y. */
+  atY(clientX: number, clientY: number, y: number): { x: number; z: number } | null;
   onChange?(piece: Piece | null): void;
 }
 
@@ -163,17 +163,21 @@ export class Grabber implements Substep {
 
     const piece = this.deps.pick(event.clientX, event.clientY);
     if (!piece) return;
-    const point = this.deps.plane(event.clientX, event.clientY);
-    if (!point) return;
     const position = piece.body.translation();
+    const grabAt = this.deps.atY(event.clientX, event.clientY, position.y);
+    const point = this.deps.atY(event.clientX, event.clientY, CARRY_Y);
+    if (!grabAt || !point) return;
     this.held = piece;
     this.carrier = event.pointerId;
     this.press = { x: event.clientX, y: event.clientY };
     this.dragged = false;
     const q = piece.body.rotation();
     this.yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
-    this.offset = { x: position.x - point.x, z: position.z - point.z };
-    this.target = { x: position.x, z: position.z };
+    // Offset is measured at the piece's current height so a click on the block
+    // stays on the block. Measuring it on the carry plane (higher, along the
+    // same ray) baked in perspective and parked the piece beside the pointer.
+    this.offset = { x: position.x - grabAt.x, z: position.z - grabAt.z };
+    this.target = { x: point.x + this.offset.x, z: point.z + this.offset.z };
     piece.body.setGravityScale(GRAB_GRAVITY_SCALE, true);
     piece.body.setBodyType(RigidBodyType.KinematicPositionBased, true);
     piece.body.wakeUp();
@@ -198,7 +202,7 @@ export class Grabber implements Substep {
       return;
     }
     if (event.pointerId !== this.carrier && !this.latched) return;
-    const point = this.deps.plane(event.clientX, event.clientY);
+    const point = this.deps.atY(event.clientX, event.clientY, CARRY_Y);
     if (point) this.target = { x: point.x + this.offset.x, z: point.z + this.offset.z };
   };
 
@@ -210,7 +214,7 @@ export class Grabber implements Substep {
       if (event.type === 'pointerup' && this.pointers.size > 0) {
         const [id, pointer] = [...this.pointers.entries()][0];
         this.carrier = id;
-        const point = this.deps.plane(pointer.x, pointer.y);
+        const point = this.deps.atY(pointer.x, pointer.y, CARRY_Y);
         if (point) this.offset = { x: this.target.x - point.x, z: this.target.z - point.z };
       }
       else if (event.type === 'pointercancel' || event.type === 'lostpointercapture' || (event.type === 'pointerup' && (this.dragged || this.dropOnTap))) this.drop();

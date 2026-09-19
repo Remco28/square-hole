@@ -7,6 +7,31 @@ import { createSim } from '../src/sim/world';
 afterEach(() => vi.unstubAllGlobals());
 
 describe('touch pickup and recovery', () => {
+  it('slides a grabbed piece under the pointer instead of keeping its world xz', async () => {
+    const sim = await createSim();
+    const piece = sim.pieces.find(p => p.spec.kind === 'square')!;
+    const pos = piece.body.translation();
+    const start = { x: pos.x, z: pos.z };
+    const underPointer = { x: start.x + 0.4, z: start.z + 0.05 };
+    vi.stubGlobal('window', new EventTarget());
+    const element = new EventTarget();
+    // Perspective: the same click hits the piece at its centre and the carry
+    // plane further along the ray.
+    const grabber = new Grabber({
+      element: element as HTMLElement,
+      pick: () => piece,
+      atY: (_x: number, _y: number, height: number) => height > 1 ? underPointer : { x: start.x, z: start.z },
+    });
+    const event = new Event('pointerdown');
+    Object.assign(event, { pointerId: 1, clientX: 0, clientY: 0, button: 0, pointerType: 'mouse' });
+    element.dispatchEvent(event);
+    expect(grabber.holding).toBe(piece);
+    const target = (grabber as unknown as { target: { x: number; z: number } }).target;
+    expect(target.x, 'piece should ride the pointer ray, not stay at the click xz').toBeCloseTo(underPointer.x, 5);
+    expect(target.z).toBeCloseTo(underPointer.z, 5);
+    sim.world.free();
+  });
+
   it('lifts a rectangle rejected by the circle, preserves its angle, and drops dynamically', async () => {
     const sim = await createSim();
       const piece = sim.pieces.find(p => p.spec.kind === 'rectangle')!;
@@ -16,7 +41,7 @@ describe('touch pickup and recovery', () => {
       expect(piece.body.translation().y).toBeGreaterThan(LID_BOTTOM_Y);
       vi.stubGlobal('window', new EventTarget());
       const element = new EventTarget();
-      const grabber = new Grabber({ element: element as HTMLElement, pick: () => piece, plane: () => hole });
+      const grabber = new Grabber({ element: element as HTMLElement, pick: () => piece, atY: () => hole });
       const send = (type: string, pointerId = 1, x = 0, y = 0) => {
         const event = new Event(type);
         Object.assign(event, { pointerId, clientX: x, clientY: y, button: 0, pointerType: 'touch' });

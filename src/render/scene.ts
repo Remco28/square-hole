@@ -52,6 +52,8 @@ export interface Viewer {
   sync(pieces: Piece[]): void;
   /** The piece under the pointer, or null. */
   pick(pieces: Piece[], clientX: number, clientY: number): Piece | null;
+  /** Where the pointer ray crosses a horizontal plane at world Y. */
+  pointAt(clientX: number, clientY: number, y: number): { x: number; z: number } | null;
   /** Where the pointer ray crosses the height a carried piece rides at. */
   carryPoint(clientX: number, clientY: number): { x: number; z: number } | null;
   /** Viewport pixels for a world point, so overlays and tools can find the scene. */
@@ -268,7 +270,7 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
 
   const raycaster = new Raycaster();
   const pointer = new Vector2();
-  const carryPlane = new Plane(new Vector3(0, 1, 0), -CARRY_Y);
+  const hitPlane = new Plane();
   const hitPoint = new Vector3();
 
   const toNdc = (clientX: number, clientY: number): Vector2 => {
@@ -281,6 +283,7 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
 
   const pick = (candidates: Piece[], clientX: number, clientY: number): Piece | null => {
     sync(candidates);
+    camera.updateMatrixWorld();
     scene.updateMatrixWorld();
     raycaster.setFromCamera(toNdc(clientX, clientY), camera);
     const reachable = candidates.filter((piece) => {
@@ -298,12 +301,15 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
     return null;
   };
 
-  const carryPoint = (clientX: number, clientY: number): { x: number; z: number } | null => {
-    scene.updateMatrixWorld();
+  const pointAt = (clientX: number, clientY: number, y: number): { x: number; z: number } | null => {
+    camera.updateMatrixWorld();
     raycaster.setFromCamera(toNdc(clientX, clientY), camera);
-    if (!raycaster.ray.intersectPlane(carryPlane, hitPoint)) return null;
+    hitPlane.setComponents(0, 1, 0, -y);
+    if (!raycaster.ray.intersectPlane(hitPlane, hitPoint)) return null;
     return { x: hitPoint.x, z: hitPoint.z };
   };
+  const carryPoint = (clientX: number, clientY: number): { x: number; z: number } | null =>
+    pointAt(clientX, clientY, CARRY_Y);
 
   const projected = new Vector3();
   const project = (point: { x: number; y: number; z: number }): { x: number; y: number } => {
@@ -370,6 +376,7 @@ export function createViewer(gl: HTMLCanvasElement, pieces: Piece[]): Viewer {
     render: () => renderer.render(scene, camera),
     sync,
     pick,
+    pointAt,
     carryPoint,
     project,
     resize,

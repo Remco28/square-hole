@@ -61,7 +61,7 @@ async function main(): Promise<void> {
   const grabber = new Grabber({
     element: canvas,
     pick: (x, y) => viewer.pick(sim.pieces, x, y),
-    plane: (x, y) => viewer.carryPoint(x, y),
+    atY: (x, y, height) => viewer.pointAt(x, y, height),
     onChange: (piece) => {
       canvas.dataset.holding = piece ? 'true' : 'false';
       if (piece) hint.hidden = true;
