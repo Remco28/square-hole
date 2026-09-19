@@ -39,6 +39,11 @@ const yawQuaternion = (yaw: number) => ({
   w: Math.cos(yaw / 2),
 });
 
+/** How far above a finger the piece rides, so the fingertip does not hide it. */
+const TOUCH_AIM_PX = 64;
+
+const isTouch = (type: string): boolean => type === 'touch' || type === 'pen';
+
 export class Grabber implements Substep {
   /**
    * Master switch for the hand. Currently always on during play; the flag stays
@@ -60,6 +65,7 @@ export class Grabber implements Substep {
   private dragged = false;
   private latched = false;
   private dropOnTap = false;
+  private pointerType = 'mouse';
 
   constructor(deps: GrabDeps) {
     this.deps = deps;
@@ -107,6 +113,12 @@ export class Grabber implements Substep {
     this.deps.onChange?.(null);
   }
 
+  private aim(event: { clientX: number; clientY: number; pointerType?: string }): { x: number; y: number } {
+    const type = event.pointerType ?? this.pointerType;
+    const lift = isTouch(type) ? TOUCH_AIM_PX : 0;
+    return { x: event.clientX, y: event.clientY - lift };
+  }
+
   before(dt: number): void {
     const held = this.held;
     if (!held) return;
@@ -134,6 +146,7 @@ export class Grabber implements Substep {
 
   private onDown = (event: PointerEvent): void => {
     if (!this.enabled) return;
+    this.pointerType = event.pointerType || this.pointerType;
     if (this.held && this.latched && event.button === 0 && this.pointers.size === 0) {
       this.dropOnTap = true;
       this.latched = false;
@@ -165,7 +178,8 @@ export class Grabber implements Substep {
     if (!piece) return;
     const position = piece.body.translation();
     const grabAt = this.deps.atY(event.clientX, event.clientY, position.y);
-    const point = this.deps.atY(event.clientX, event.clientY, CARRY_Y);
+    const aim = this.aim(event);
+    const point = this.deps.atY(aim.x, aim.y, CARRY_Y);
     if (!grabAt || !point) return;
     this.held = piece;
     this.carrier = event.pointerId;
@@ -201,12 +215,16 @@ export class Grabber implements Substep {
       this.lastX = event.clientX;
       return;
     }
+    // A second tap to drop must not nudge the piece before we know it is a tap.
+    if (this.dropOnTap && !this.dragged) return;
     if (event.pointerId !== this.carrier && !this.latched) return;
-    const point = this.deps.atY(event.clientX, event.clientY, CARRY_Y);
+    const aim = this.aim(event);
+    const point = this.deps.atY(aim.x, aim.y, CARRY_Y);
     if (point) this.target = { x: point.x + this.offset.x, z: point.z + this.offset.z };
   };
 
   private onUp = (event: PointerEvent): void => {
+    if (event.type === 'lostpointercapture') return;
     this.pointers.delete(event.pointerId);
     if (this.pointers.size < 2) this.twist = null;
     if (event.pointerId === this.rotator) this.rotator = null;
@@ -214,13 +232,20 @@ export class Grabber implements Substep {
       if (event.type === 'pointerup' && this.pointers.size > 0) {
         const [id, pointer] = [...this.pointers.entries()][0];
         this.carrier = id;
-        const point = this.deps.atY(pointer.x, pointer.y, CARRY_Y);
+        const aim = this.aim({ clientX: pointer.x, clientY: pointer.y, pointerType: this.pointerType });
+        const point = this.deps.atY(aim.x, aim.y, CARRY_Y);
         if (point) this.offset = { x: this.target.x - point.x, z: this.target.z - point.z };
       }
-      else if (event.type === 'pointercancel' || event.type === 'lostpointercapture' || (event.type === 'pointerup' && (this.dragged || this.dropOnTap))) this.drop();
+      else if (event.type === 'pointercancel') this.drop();
       else if (event.type === 'pointerup') {
-        this.latched = true;
-        this.carrier = null;
+        const touch = isTouch(event.pointerType || this.pointerType);
+        if (this.dropOnTap && !this.dragged) this.drop();
+        else if (!touch && this.dragged) this.drop();
+        else {
+          this.latched = true;
+          this.carrier = null;
+          this.dropOnTap = false;
+        }
       }
     }
   };

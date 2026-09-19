@@ -42,13 +42,9 @@ describe('synth voices', () => {
     expect(energy(a) / energy(b)).toBeLessThan(2);
   });
 
-  it('lands the settle twice', () => {
+  it('is a single short tap', () => {
     const samples = impactSamples('settle', 44100, 3);
-    const half = Math.floor(samples.length / 2);
-    const first = energy(samples.slice(0, half));
-    const second = energy(samples.slice(half));
-    // The second tap is the main one; the first half must still carry sound.
-    expect(first).toBeGreaterThan(1e-4);
-    expect(second).toBeGreaterThan(1e-4);
+    expect(energy(samples)).toBeGreaterThan(1e-4);
+    expect(samples.length).toBeLessThan(44100 * 0.2);
   });
 });

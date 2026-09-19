@@ -26,8 +26,8 @@ If you deny the camera the puzzle still works, you just lose the mirror.
 
 | Action | How |
 |---|---|
-| Carry a piece | Drag, or tap to pick up and tap again to drop |
-| Drop it | Release a drag, or tap again after picking up |
+| Carry a piece | Tap to pick up, then drag; desktop also click-drags |
+| Drop it | Tap again. On desktop, releasing a drag also drops |
 | Rotate a block | Two-finger twist while holding it; desktop: `Q` / `E`, `←` / `→`, or mouse wheel |
 | Turn around the pail | `⟲` / `⟳` |
 | Put everything back | `Reset` |

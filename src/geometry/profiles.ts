@@ -1,4 +1,4 @@
-import { CLEARANCE, HOLE_RING_R, SQUARE_SIDE, SQUARE_HOLE } from '../config';
+import { CLEARANCE, HOLE_RING_R, MATCH_CLEARANCE, SQUARE_SIDE, SQUARE_HOLE } from '../config';
 
 export interface Vec2 {
   x: number;
@@ -157,7 +157,8 @@ export const extent = (points: Vec2[]): number => {
  * is an exact offset for the regular outlines and a close-enough one for the
  * house, and it guarantees the hole always contains the piece.
  */
-export const holeScale = (spec: ShapeSpec): number => 1 + CLEARANCE / extent(spec.outline);
+export const holeScale = (spec: ShapeSpec): number =>
+  1 + (spec.kind === 'square' ? CLEARANCE : MATCH_CLEARANCE) / extent(spec.outline);
 
 export const holeOutline = (spec: ShapeSpec): Vec2[] => {
   const s = holeScale(spec);

@@ -40,7 +40,7 @@ export const LID_R = 88;
 export const LID_T = 16;
 
 /** How far a hole opens up at the lid's top face, and over what depth. */
-export const LID_FLARE = 1.8;
+export const LID_FLARE = 2.4;
 export const LID_FLARE_DEPTH = 5;
 
 /** The piece the square hole was designed for. */
@@ -56,6 +56,13 @@ export const SQUARE_SIDE = 25;
  * piece drops in comfortably while still needing to be lined up.
  */
 export const CLEARANCE = 3;
+
+/**
+ * Extra room in every hole except the square. The square hole is the joke and
+ * stays snug; the matching holes are just doors, so they get more slack than a
+ * millimetre or two of fingertip error.
+ */
+export const MATCH_CLEARANCE = 4;
 
 /**
  * The hole that eats everything. It is the square piece's own hole — derived
